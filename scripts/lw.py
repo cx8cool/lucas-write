@@ -11,11 +11,12 @@
   lw.py history                    列快照
   lw.py rollback NAME              从快照恢复 profile
   lw.py samples                    刷新样本计数
+  lw.py ingest                     把 samples/raw 里的 txt/srt/vtt/docx 统一成带 frontmatter 的 md
   lw.py wrote TITLE PATH           记录一次写稿，置 pending_review
   lw.py review-done                清 pending_review
   lw.py metric KEY VALUE           写指标（blind_test_score / edit_count 等）
 """
-import argparse, json, os, shutil, sys
+import argparse, json, os, re, shutil, subprocess, sys
 from datetime import datetime
 from pathlib import Path
 
@@ -44,17 +45,22 @@ def save(s):
     STATE.write_text(json.dumps(s, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+TODO_RE = re.compile(r"(^|[：:|\s])TODO\s*(\||$)", re.M)
+
+
 def todo_count(path):
     try:
-        return path.read_text(encoding="utf-8").count("TODO")
+        return len(TODO_RE.findall(path.read_text(encoding="utf-8")))
     except OSError:
         return -1
 
 
 def cmd_init(a):
     if STATE.exists() and not a.force:
-        print(f"已存在 {WS}，不覆盖。要重置加 --force。")
+        print(f"工作区已存在：{WS}，无需重建。")
         return
+    if STATE.exists() and a.force:
+        cmd_snapshot(argparse.Namespace(label="before-force-init"))
     for d in ["profile/history", "samples/raw", "samples/good", "samples/bad", "imports", "drafts", ".transcribe"]:
         (WS / d).mkdir(parents=True, exist_ok=True)
     for f in PROFILE_FILES:
@@ -69,6 +75,63 @@ def cmd_init(a):
     print(f"✅ 工作区已建好：{WS}\n   profile 8 个文件来自模板，全部待训练。下一步：第 1 轮。")
 
 
+def _strip_subs(text):
+    lines = [l.strip() for l in text.splitlines()]
+    lines = [re.sub("<[^>]+>", "", l) for l in lines
+             if l and "-->" not in l and not l.isdigit() and not l.startswith(("WEBVTT", "Kind:", "Language:"))]
+    dedup = []
+    for l in lines:
+        if not dedup or l != dedup[-1]:
+            dedup.append(l)
+    return "\n\n".join(" ".join(dedup[i:i + 8]) for i in range(0, len(dedup), 8))
+
+
+def cmd_ingest(a):
+    """把 samples/raw 里他自己丢进来的 txt/srt/vtt/docx/无 frontmatter 的 md 统一成带 frontmatter 的 md。"""
+    load()
+    raw = WS / "samples" / "raw"
+    n = 0
+    for f in sorted(raw.iterdir()):
+        if f.name.startswith(".") or f.is_dir():
+            continue
+        ext = f.suffix.lower()
+        if ext == ".md" and f.read_text(encoding="utf-8", errors="ignore").lstrip().startswith("---"):
+            continue
+        if ext in (".txt", ".md"):
+            body = f.read_text(encoding="utf-8", errors="ignore")
+        elif ext in (".srt", ".vtt"):
+            body = _strip_subs(f.read_text(encoding="utf-8", errors="ignore"))
+        elif ext == ".docx":
+            r = subprocess.run(["textutil", "-convert", "txt", "-stdout", str(f)], capture_output=True, text=True)
+            body = r.stdout
+        else:
+            (raw / ".ingested" / "unsupported").mkdir(parents=True, exist_ok=True)
+            f.rename(raw / ".ingested" / "unsupported" / f.name)
+            print(f"  ⏭ 不认识的格式（只收 txt/srt/vtt/docx/md），已移到 .ingested/unsupported/：{f.name}")
+            continue
+        if not body.strip():
+            (raw / ".ingested" / "unsupported").mkdir(parents=True, exist_ok=True)
+            f.rename(raw / ".ingested" / "unsupported" / f.name)
+            print(f"  ⏭ 空文件，已移走：{f.name}"); continue
+        m = re.match(r"(\d{4}-\d{2}-\d{2})", f.stem)
+        date = m.group(1) if m else datetime.now().strftime("%Y-%m-%d")
+        title = re.sub(r"^\d{4}-\d{2}-\d{2}[_ -]*", "", f.stem) or f.stem
+        q = lambda t: t.replace("'", "''")
+        fm = (f"---\ntitle: '{q(title)}'\nsource: file\noriginal_file: '{q(f.name)}'\nupload_date: {date}\nlanguage: zh\n"
+              f"transcript_source: user-file\nchars: {len(body)}\nimported: {datetime.now().strftime('%Y-%m-%d')}\n---\n")
+        out = raw / (f.stem + ".md")
+        if out.exists() and out != f:
+            out = raw / (f.stem + "_file.md")
+        out.write_text(fm + f"\n# {title}\n\n{body.strip()}\n", encoding="utf-8")
+        if f != out:
+            (raw / ".ingested").mkdir(exist_ok=True)
+            f.rename(raw / ".ingested" / f.name)
+        print(f"  ✅ {f.name} → {out.name}")
+        n += 1
+    print(f"整理 {n} 个文件；原件移到 samples/raw/.ingested/")
+    cmd_samples(a)
+
+
 def cmd_samples(a):
     s = load()
     for k in ["raw", "good", "bad"]:
@@ -81,13 +144,13 @@ def cmd_status(a):
     s = load()
     for k in ["raw", "good", "bad"]:
         s["samples"][k] = len(list((WS / "samples" / k).glob("*.md")))
-    save(s)
     completeness = {f: todo_count(PROFILE / f) for f in PROFILE_FILES}
     if a.json:
         out = dict(s)
         out["profile_todo"] = completeness
         out["ai_memory_export"] = (WS / "imports" / "ai-memory-export.md").exists()
         out["workspace"] = str(WS)
+        out["ask_review"] = bool(s.get("pending_review")) and s["ready"]
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return
     print(f"Lucas-write 看板  ｜ 工作区 {WS} ｜ profile v{s['profile_version']}")
@@ -117,8 +180,8 @@ def cmd_round(a):
         s["current_round"] = a.n
     else:
         s["rounds"][str(a.n)] = {"status": "done" if a.action == "done" else "skipped", "at": now(), "note": a.note}
-        if a.n >= s["current_round"]:
-            s["current_round"] = min(a.n + 1, 10)
+        pending = [i for i in range(1, 11) if s["rounds"][str(i)]["status"] == "pending"]
+        s["current_round"] = pending[0] if pending else 10
         done = {int(k) for k, v in s["rounds"].items() if v["status"] == "done"}
         if {1, 2, 3, 4, 5} <= done:
             s["ready"] = True
@@ -133,15 +196,16 @@ def cmd_snapshot(a):
     s = load()
     name = datetime.now().strftime("%Y%m%d-%H%M%S") + (f"_{a.label}" if a.label else "")
     dst = PROFILE / "history" / name
+    k = 1
+    while dst.exists():
+        dst = PROFILE / "history" / f"{name}_{k}"; k += 1
+    name = dst.name
     dst.mkdir(parents=True)
     for f in PROFILE_FILES:
         if (PROFILE / f).exists():
             shutil.copy(PROFILE / f, dst / f)
     major, minor = s["profile_version"].split(".")
-    if not s["graduated"]:
-        s["profile_version"] = f"{major}.{int(minor) + 1}"
-    else:
-        s["profile_version"] = f"{major}.{int(minor) + 1}"
+    s["profile_version"] = f"{major}.{int(minor) + 1}"
     save(s)
     print(f"✅ 快照 {name}，profile 现在 v{s['profile_version']}")
 
@@ -202,19 +266,24 @@ x = sub.add_parser("snapshot"); x.add_argument("--label", default=None)
 sub.add_parser("history")
 x = sub.add_parser("rollback"); x.add_argument("name")
 sub.add_parser("samples")
+sub.add_parser("ingest")
 x = sub.add_parser("wrote"); x.add_argument("title"); x.add_argument("path")
 sub.add_parser("review-done")
 x = sub.add_parser("metric"); x.add_argument("key"); x.add_argument("value")
 args = p.parse_args()
 
 if args.cmd == "round":
-    if args.n_or_set == "set":
-        args.action, args.n = "set", int(args.rest)
-    else:
-        args.n, args.action = int(args.n_or_set), (args.rest or "done")
-        if args.action not in ("done", "skip"):
-            sys.exit("round 用法: round N done|skip 或 round set N")
+    usage = "round 用法: round N done|skip 或 round set N（N 为 0-10）"
+    try:
+        if args.n_or_set == "set":
+            args.action, args.n = "set", int(args.rest)
+        else:
+            args.n, args.action = int(args.n_or_set), (args.rest or "done")
+    except (TypeError, ValueError):
+        sys.exit(usage)
+    if args.action not in ("done", "skip", "set") or not 0 <= args.n <= 10:
+        sys.exit(usage)
     cmd_round(args)
 else:
     {"init": cmd_init, "status": cmd_status, "snapshot": cmd_snapshot, "history": cmd_history, "rollback": cmd_rollback,
-     "samples": cmd_samples, "wrote": cmd_wrote, "review-done": cmd_review_done, "metric": cmd_metric}[args.cmd](args)
+     "samples": cmd_samples, "ingest": cmd_ingest, "wrote": cmd_wrote, "review-done": cmd_review_done, "metric": cmd_metric}[args.cmd](args)

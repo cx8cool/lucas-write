@@ -4,19 +4,33 @@
 
 ## 一、安装（5 分钟）
 
+**第 1 步：装 Homebrew**（Mac 的软件安装器，已经有的跳过；它会顺带装好 git）。打开"终端"，粘贴 https://brew.sh 首页那一行命令，按提示走完。
+
+**第 2 步：装工具**，在终端里依次跑：
 ```
-git clone git@github.com:cx8cool/lucas-write.git ~/.agents/skills/lucas-write
+brew install python@3.12
+mkdir -p ~/.agents/skills
+git clone https://github.com/cx8cool/lucas-write.git ~/.agents/skills/lucas-write
 python3 ~/.agents/skills/lucas-write/scripts/transcribe.py --check-env
 ```
-第二条会检查并自动装 yt-dlp、ffmpeg、funasr（用于把你的视频转成文字）。要几分钟。
+最后一条会检查并自动装 yt-dlp、ffmpeg 和 FunASR（把你的视频转成文字用的，装在 `~/lucas-write/.venv`，下载 1-2 GB，几分钟）。看到"✅ 齐全，可以转录"就好了；提示缺什么就照它说的装，再跑一遍。
 
-打开 Codex，输入 `$lucas-write`，它会自动建好你的数据目录 `~/lucas-write/`，然后进入第 1 轮。
+**第 3 步：设置 Codex**。打开 `~/.codex/config.toml`（没有就新建），加上这两行，让它跑脚本时能联网：
+```
+web_search = "live"
+
+[sandbox_workspace_write]
+network_access = true
+```
+第一行让它找选题时搜最新的新闻，后两行让转录脚本能联网。
+
+**第 4 步：启动**。以后每次都在终端里输入 `cd ~` 回车，再输入 `codex` 回车（从家目录启动，Codex 才能读写 `~/lucas-write/`）。进去后输入 `$lucas-write`，它会自动建好数据目录，进入第 1 轮。Codex 偶尔弹权限确认，批准就行。
 
 更新工具：`git -C ~/.agents/skills/lucas-write pull`。你的数据在 `~/lucas-write/`，更新不会动。
 
 ## 二、开始前准备（越全越好，没有也能跑）
 
-1. **过去的视频**：稿子、字幕、转录，任何格式，放进 `~/lucas-write/samples/raw/`。没有存档就准备频道链接或 10-30 个视频链接，工具自己转录。
+1. **过去的视频**：稿子、字幕、转录，txt / srt / vtt / docx / md 都行，放进 `~/lucas-write/samples/raw/`（第一次跑 `$lucas-write` 之后这个目录才会出现）。没有存档就准备频道链接或 10-30 个视频链接，工具自己转录。
 2. **表现最好的 15-20 个标题**，有播放数据更好。
 3. **你平时看的消息源**：网站、报告、公众号。
 4. **（强烈建议）让你现在用的 AI 把对你的了解导出来**：把下面这段贴进 ChatGPT 或你常用的 AI，把回答存成 `~/lucas-write/imports/ai-memory-export.md`。第 1 轮会直接读它，省掉大半问答。
@@ -80,8 +94,10 @@ ChatGPT 还可以在 设置 → 个性化 → 管理记忆 里把记忆条目复
 
 ## 五、常见问题
 
-- **转录很慢**：第一次要下载几百 MB 模型。视频多时它会在后台跑，你可以关掉 Codex，回来说"看转录进度"。
-- **FunASR 装不上**：告诉它"只拿字幕"，没字幕的视频它会列出来让你贴稿。
+- **转录很慢**：第一次要下载几百 MB 模型，之后一条 10 分钟的视频约 1 分钟。视频多时它在后台跑，你可以关掉 Codex，回来说"看转录进度"。
+- **字幕不全**：有些视频的人工字幕只有一部分，工具会发现字幕太稀自动改用语音转录，不用管。
+- **FunASR 装不上**：告诉它"只拿字幕"，没字幕的视频它会列出来让你贴稿。只有部分字幕的视频它会标 partial，装好 FunASR 后可以补。
+- **它说"沙盒"或"没有权限"**：确认你是 `cd ~` 之后再启动的 codex，并且第 3 步的两行加了。
 - **选题搜不到新闻**：Codex 要开联网搜索，或者你把这周看到的新闻贴给它。
 - **它写得不像我**：说"训练"接着跑，或直接跑第 9 轮盲测。
 - **改坏了想回退**：`$lucas-write 回滚`，每次改 profile 前都有快照。

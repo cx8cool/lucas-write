@@ -37,11 +37,13 @@
 2. **只有链接** → 切 `transcribe` 模式（读 `mode-transcribe.md`），跑完回来。
 3. **都没有但有频道** → 要频道链接，`transcribe.py --limit 30`。
 
-转录/导入完成后 `lw.py samples` 刷新计数。
+他自己丢进 `samples/raw/` 的 txt / srt / vtt / docx / 无 frontmatter 的 md，先跑 `python3 SKILL_DIR/scripts/lw.py ingest` 统一格式，再 `lw.py samples` 刷新计数。
+
+样本多时分批读：每批最多 10 篇，每批读完把统计（开场类型计数、口头禅计数、结构标注）追加写到 `WS/imports/round2-notes.md`，全部读完再汇总。不要一次把 30 篇全塞进上下文。
 
 提炼（读 `extract-prompts.md` 的"风格"部分）：开场方式、固定开场白/结束语（原文）、口头禅 top 10 带频率、句长和人称、过渡词、提问推进习惯、结尾习惯。同时**顺手产出两份草稿留给第 3、4 轮**：结构反推草稿、反复出现的判断清单。把这两份存到 `WS/imports/round2-structure-draft.md` 和 `WS/imports/round2-opinions-draft.md`，不展示给他（下两轮再展示）。
 
-写入：style-guide.md 的"Lucas 版底层逻辑""固定开场白""固定结束语""口头禅""句子与段落习惯"。
+写入：style-guide.md 的"Lucas 版底层逻辑""固定开场白""固定结束语""口头禅""句子与段落习惯""CTA 规范"（中段/结尾 CTA 的位置和原句）。
 降级：样本 < 5 篇 → 照常做，`lw.py round 2 done --note "样本少，N 篇"`，并在 status 里持续提醒补样本。
 预告：下一轮看一眼我反推的结构，改到对就行。
 
@@ -85,12 +87,12 @@
 
 - 要：15-20 个表现最好的标题（有数据更好）；没有就从 samples 标题里按 view_count 取前 20 让他确认。
 - 提炼：归纳 4 套公式，每套配他的 2 个真实例子；封面大字习惯。
-- 写入：title-formulas.md "Lucas 版"+"封面大字习惯"。
+- 写入：title-formulas.md "Lucas 版"+"封面大字习惯"+"标题硬约束"的 Lucas 补充（他标题里从不出现的写法）。
 
 ## 第 9 轮：盲测校准
 
 - 让他挑一个**已经做过**的题（从 samples 里选），只给你标题和一句话方向。
-- 你**不读那篇样本**，用当前 profile 走 write 模式写一版，存 `drafts/blind-test_日期.md`。
+- 你**不读那篇样本**，用当前 profile 走 write 模式写一版，存 `drafts/blind-test_日期.md`。盲测稿不跑 `lw.py wrote`（它不是要发布的稿，不需要回收修改）。
 - 然后把他的原稿和你的稿并排贴出（各取开场 + 一个维度 + 结尾），让他圈"不像我"的地方，并给 1-5 分。
 - 每处"不像"翻译成一条规则（写法要具体到句子级：不是"更口语"，而是"每段第一句用问句，不用陈述句"），展示后补进 style-guide / script-templates。
 - `lw.py metric blind_test_score N`。< 4 分建议隔周再跑一次第 9 轮。
@@ -100,7 +102,7 @@
 - 真实新题，走 seed → write → title → qa 全流程。
 - 他逐段改，贴回改后稿。你做 diff，每处改动归因到 profile 的某一条（或"profile 里没有这条"），展示后写补丁。
 - `lw.py metric edit_count N`（改动段落数）。
-- `lw.py round 10 done` 会置 `graduated=true`，profile 版本记 `1.0`。告诉他以后每次写完我会问"改了哪里"。
+- 修改已经当场收过，跑 `lw.py review-done`，再 `lw.py round 10 done`，会置 `graduated=true`，profile 版本记 `1.0`。告诉他以后每次写完我会问"改了哪里"。
 
 ## 毕业后校准（每次 write 之后触发，见 SKILL.md 第 2 条）
 
