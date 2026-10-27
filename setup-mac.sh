@@ -46,8 +46,15 @@ fi
 say "2/7 Homebrew（Mac 的软件安装器）"
 if [ -x "$BREW_BIN" ]; then ok "已装"
 else
-  warn "接下来会要你输 Mac 开机密码（输入时屏幕不显示，输完回车）"
-  run /bin/bash -c "NONINTERACTIVE=1 $(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  if ! groups "$USER" | grep -qw admin; then
+    echo "   你的账户不是管理员，装不了。去 系统设置 → 用户与群组，把 $USER 改成「管理员」，注销再登录后重跑。"; exit 1
+  fi
+  warn "现在输 Mac 开机密码（输入时屏幕不显示，输完回车）"
+  if [ "$DRY_RUN" != "1" ]; then
+    sudo -v < /dev/tty || { echo "   密码不对或没权限，重跑一遍再试。"; exit 1; }
+    ( while true; do sudo -n true; sleep 50; kill -0 "$$" 2>/dev/null || exit; done ) 2>/dev/null &
+    /bin/bash -c "NONINTERACTIVE=1 $(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" < /dev/tty
+  else echo "   [dry] 安装 Homebrew"; fi
 fi
 if [ -x "$BREW_BIN" ]; then
   eval "$("$BREW_BIN" shellenv)"
