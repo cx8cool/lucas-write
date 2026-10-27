@@ -2,7 +2,15 @@
 
 这是一个装在 Codex 里的写稿工具：找选题 → 写口播稿 → 出标题 → 打分。装好就能写，但一开始写得不像你。它会用 10 轮"训练"把你的风格、结构、观点、标题习惯学进去，前 5 轮跑完就基本像你了。
 
-## 一、安装（5 分钟）
+## 一、安装
+
+**新 Mac 一键装（推荐）**：打开「终端」（聚焦搜索输入 Terminal），把下面这一行整个粘贴进去回车：
+```
+curl -fsSL https://raw.githubusercontent.com/cx8cool/lucas-write/master/setup-mac.sh | bash
+```
+它会依次装好：Xcode 命令行工具、Homebrew、git、Python 3.12、yt-dlp、ffmpeg、Codex、Warp、ChatGPT、Claude、Obsidian、oh-my-zsh，再把这个写稿工具和语音转录装上，并自动配好 Codex。中间会要你输一次 Mac 开机密码，可能弹一个"安装命令行工具"的窗口，点安装。全程 10-20 分钟，看网速。装完照屏幕上的 4 步做就行。可以重复跑，装过的会跳过。
+
+如果一键脚本中途失败，把桌面上的 `lucas-setup.log` 发给 Christine。下面是手动步骤，一键成功的话不用看。
 
 **第 1 步：装 Homebrew**（Mac 的软件安装器，已经有的跳过；它会顺带装好 git）。打开"终端"，粘贴 https://brew.sh 首页那一行命令，按提示走完。
 
