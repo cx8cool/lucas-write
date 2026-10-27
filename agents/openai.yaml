@@ -1,0 +1,6 @@
+interface:
+  display_name: "Lucas 口播稿工作台"
+  short_description: "选题 → 写稿 → 标题 → 打分，附 10 轮风格训练"
+  default_prompt: "Use $lucas-write to find topics, draft a spoken-video script in Lucas's own voice, generate titles, score the draft, or continue style training."
+policy:
+  allow_implicit_invocation: true
