@@ -18,12 +18,14 @@ INSTALL_OH_MY_ZSH=1
 INSTALL_FUNASR=1          # 转录视频用，下载 1-2 GB，放最后
 # ================================================
 
+main() {
 say()  { printf "\n\033[1;34m==> %s\033[0m\n" "$*"; }
 ok()   { printf "   \033[32m✓ %s\033[0m\n" "$*"; }
 warn() { printf "   \033[33m! %s\033[0m\n" "$*"; }
 run()  { if [ "$DRY_RUN" = "1" ]; then echo "   [dry] $*"; else "$@"; fi; }
 
 exec > >(tee -a "$LOG") 2>&1
+exec < /dev/tty 2>/dev/null || true
 echo "Lucas 装机脚本 $(date '+%Y-%m-%d %H:%M')  日志：$LOG"
 
 if [ "$(uname)" != "Darwin" ]; then echo "只支持 macOS"; exit 1; fi
@@ -67,7 +69,7 @@ fi
 # ---------- 3. 命令行工具 ----------
 say "3/7 命令行工具：${FORMULAE[*]}"
 for f in "${FORMULAE[@]}"; do
-  if brew list --formula "$f" >/dev/null 2>&1; then ok "$f 已装"
+  if brew list "$f" >/dev/null 2>&1; then ok "$f 已装"
   else run brew install "$f" && ok "$f"; fi
 done
 
@@ -116,3 +118,5 @@ cat <<'TXT'
    ChatGPT / Claude / Obsidian 都在 应用程序 里，打开登录一下就行。
 TXT
 echo "   日志在 ${LOG} ，出问题把它发给 Christine。"
+}
+main "$@"
