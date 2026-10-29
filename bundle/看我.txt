@@ -1,0 +1,39 @@
+新 Mac 装机包
+
+包里三样东西：
+  装机.command    双击就开始装
+  setup-mac.sh    同一个脚本，给终端用
+  lucas-write     写稿工具本体
+
+会装什么：Homebrew、git、python、yt-dlp、ffmpeg、Codex、Warp、ChatGPT、Claude、Obsidian、oh-my-zsh、
+写稿工具 lucas-write、语音转录 FunASR。装过的会自动跳过，重跑没关系。全程要联网。
+
+
+怎么开始（两种挑一种）
+
+方法一：双击「装机.command」
+  如果弹"无法打开，因为来自身份不明的开发者"或"Apple 无法验证"：
+  打开 系统设置 → 隐私与安全性，往下拉到"安全性"那块，点「仍要打开」，再双击一次。
+
+方法二：在终端里粘贴（最稳）
+  1. 按 command+空格，输入 终端 ，回车
+  2. 如果这个文件夹在「下载」里，直接粘贴这一行回车：
+       bash ~/Downloads/新Mac装机包/setup-mac.sh
+     在别的地方的话：先输入 bash 加一个空格，再把 setup-mac.sh 这个文件拖进终端窗口，回车
+
+
+装的过程中
+  - 第一步可能弹窗装"命令行开发者工具"，点「安装」，装完回终端等它继续
+  - 会让输一次 Mac 开机密码，输的时候屏幕上不显示，输完回车
+  - 最后一步下载语音模型 1-2 GB，要几分钟，别关窗口
+  - 中途断了就重新跑一遍，装过的会跳过
+
+
+装完之后
+  1. 打开 Warp（在 应用程序 里），以后终端都用它
+  2. 输入  codex login  回车，用 ChatGPT 账号登录，只需一次
+  3. 输入  cd ~  回车，再输入  codex  回车
+  4. 在 Codex 里输入  $lucas-write  回车，开始第 1 轮
+  ChatGPT、Claude、Obsidian 在 应用程序 里，打开登录一下。
+
+出问题把桌面上的 lucas-setup.log 发给 Christine。

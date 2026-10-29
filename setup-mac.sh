@@ -3,6 +3,7 @@
 # 用法（终端里粘贴）：
 #   curl -fsSL https://raw.githubusercontent.com/cx8cool/lucas-write/master/setup-mac.sh | bash
 # 或者下载后：bash setup-mac.sh
+# 没网下不了仓库时，把 lucas-write 文件夹放旁边：LOCAL_REPO=./lucas-write bash setup-mac.sh
 # 可重复运行，装过的会跳过。设 DRY_RUN=1 只打印不执行。
 
 set -u
@@ -10,12 +11,13 @@ DRY_RUN="${DRY_RUN:-0}"
 REPO="https://github.com/cx8cool/lucas-write.git"
 SKILL_DIR="$HOME/.agents/skills/lucas-write"
 LOG="$HOME/Desktop/lucas-setup.log"
+LOCAL_REPO="${LOCAL_REPO:-}"        # 本地已有的 lucas-write 文件夹（装机包里自带），有就不从 GitHub 下
 
 # ====== 要装的东西（不想装的删掉那一行即可）======
 FORMULAE=(git python@3.12 yt-dlp ffmpeg codex)
 CASKS=(warp chatgpt claude obsidian)
-INSTALL_OH_MY_ZSH=1
-INSTALL_FUNASR=1          # 转录视频用，下载 1-2 GB，放最后
+INSTALL_OH_MY_ZSH="${INSTALL_OH_MY_ZSH:-1}"
+INSTALL_FUNASR="${INSTALL_FUNASR:-1}"   # 转录视频用，下载 1-2 GB，放最后
 # ================================================
 
 main() {
@@ -96,10 +98,18 @@ grep -q '^web_search' "$CFG" || { [ "$DRY_RUN" = "1" ] || printf '\nweb_search =
 grep -q 'sandbox_workspace_write' "$CFG" || { [ "$DRY_RUN" = "1" ] || printf '\n[sandbox_workspace_write]\nnetwork_access = true\n' >> "$CFG"; ok "config.toml: 沙盒联网"; }
 
 if [ -d "$SKILL_DIR/.git" ]; then
-  run git -C "$SKILL_DIR" pull -q && ok "lucas-write 已更新"
+  if run git -C "$SKILL_DIR" pull -q; then ok "lucas-write 已更新"; else warn "lucas-write 更新失败（没网？），先用现有版本"; fi
+elif [ -n "$LOCAL_REPO" ] && [ -f "$LOCAL_REPO/SKILL.md" ]; then
+  if [ -e "$SKILL_DIR" ]; then warn "$SKILL_DIR 已存在但不是 git 仓库，没动它"
+  else
+    run cp -R "$LOCAL_REPO" "$SKILL_DIR"
+    [ "$DRY_RUN" = "1" ] || xattr -rd com.apple.quarantine "$SKILL_DIR" 2>/dev/null
+    [ -d "$SKILL_DIR/.git" ] && run git -C "$SKILL_DIR" remote set-url origin "$REPO"
+    ok "lucas-write 从装机包复制到 $SKILL_DIR"
+  fi
 else
   if run git clone -q "$REPO" "$SKILL_DIR"; then ok "lucas-write 装到 $SKILL_DIR"
-  else warn "下载 lucas-write 失败（仓库可能是私有的）。把你的 GitHub 用户名发给 Christine，加权限后重跑这个脚本。"; fi
+  else warn "下载 lucas-write 失败。把日志发给 Christine。"; fi
 fi
 
 # ---------- 7. FunASR（转录视频用）----------
